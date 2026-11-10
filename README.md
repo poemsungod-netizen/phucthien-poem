@@ -14,3 +14,5 @@ hàng đợi chăm sóc lại sau 3 ngày, theo dõi bài viết/video hàng ng�
 - Chạy thử cục bộ: `npx serve .` (đừng mở trực tiếp bằng file://).
 - Triển khai: `npm i -g firebase-tools && firebase login && firebase deploy`
   (hoặc GitHub Pages / Netlify).
+vflead-11
+# vflead-11
