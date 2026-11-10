@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VinFast CRM (Firebase) – CSKH &amp; Marketing</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--bg:#f3f6fa;--surface:#fff;--text:#0f172a;--muted:#64748b;--line:#e2e8f0;--accent:#0b5fd6;--soft:#f1f5f9;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a111f;--surface:#101a2b;--text:#e5e9f0;--muted:#94a3b8;--line:#223049;--accent:#5aa2ff;--soft:#16233a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0a111f;--surface:#101a2b;--text:#e5e9f0;--muted:#94a3b8;--line:#223049;--accent:#5aa2ff;--soft:#16233a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.muted{color:var(--muted)}.line{border-color:var(--line)}.soft{background:var(--soft)}
+.inp{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:.45rem .7rem;font-size:.85rem;width:100%;outline:none}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.btn{border-radius:10px;padding:.45rem .8rem;font-size:.8rem;font-weight:600;border:1px solid var(--line);background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--soft)}
+.btn-p{background:var(--accent);color:#fff;border-color:var(--accent)}.btn-p:hover{background:var(--accent);filter:brightness(1.1)}
+.btn-g{background:#059669;color:#fff;border-color:#059669}.btn-g:hover{background:#059669;filter:brightness(1.1)}
+.btn-n{background:var(--soft);color:var(--muted)}
+.badge{display:inline-block;border-radius:999px;padding:.1rem .55rem;font-size:.68rem;font-weight:700;white-space:nowrap;border:0;cursor:default}
+button.badge{cursor:pointer}
+.b-new{background:rgba(59,130,246,.15);color:#3b82f6}.b-con{background:rgba(139,92,246,.15);color:#8b5cf6}
+.b-cons{background:rgba(245,158,11,.18);color:#d97706}.b-drive{background:rgba(6,182,212,.17);color:#0891b2}
+.b-closed{background:rgba(34,197,94,.17);color:#16a34a}.b-drop{background:rgba(148,163,184,.25);color:#64748b}
+.c-red{background:rgba(239,68,68,.16);color:#ef4444}.c-yellow{background:rgba(234,179,8,.22);color:#ca8a04}.c-green{background:rgba(34,197,94,.17);color:#16a34a}
+tr.overdue{background:rgba(239,68,68,.07)}
+tbody tr:hover{background:var(--soft)}
+a.lnk{color:var(--accent);font-weight:600;text-decoration:none}a.lnk:hover{text-decoration:underline}
+.tab{padding:.5rem .9rem;border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;border:0;color:var(--muted);background:none;white-space:nowrap}
+.tab.on{background:var(--accent);color:#fff}
+.bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden}.bar>div{height:100%;border-radius:99px}
+.tl{border-left:2px solid var(--line);margin-left:6px;padding-left:14px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const { useState, useEffect, useMemo, useRef } = React;
+const html = htm.bind(React.createElement);
+
+const MODELS=["VF 3","VF 5 Plus","VF 6","VF 7","VF 8","VF 9","Green/Service Car"];
+const REGIONS=["Ninh Thuận","Khánh Hòa","Bình Thuận","Lâm Đồng"];
+const SOURCES=["Facebook Ads","Google Ads","TikTok","Showroom","Referral"];
+const ST=[["new","1. New Lead (Mới)",0,"b-new"],["quote","2. Sent Quote (Báo giá)",25,"b-con"],["drive","3. Test Drive (Lái thử)",50,"b-drive"],["nego","4. Negotiating (Đàm phán)",75,"b-cons"],["deposit","5. Deposited (Đã cọc VF)",100,"b-closed"],["lost","6. Lost (Tạm dừng)",0,"b-drop"]];
+const CH=[["call","📞 Gọi điện (Call)"],["zalo","💬 Zalo"],["meet","🤝 Gặp trực tiếp (Direct Meet)"],["drive","🚗 Lái thử (Test Drive)"]];
+const PLAT=["Facebook","Zalo","TikTok","YouTube"];
+const TST=[["planned","Planned (Kế hoạch)"],["progress","In Progress (Đang làm)"],["published","Published (Đã đăng)"]];
+const LS="vf_cloud_local_v1";
+// ====== DÁN CẤU HÌNH FIREBASE CỦA BẠN VÀO ĐÂY (Firebase Console > Project settings > Your apps > Web) ======
+const FIREBASE_CONFIG={apiKey:"YOUR_API_KEY",authDomain:"YOUR_PROJECT.firebaseapp.com",projectId:"YOUR_PROJECT",appId:"YOUR_APP_ID"};
+const FB_READY=!/^YOUR_/.test(FIREBASE_CONFIG.apiKey);
+let fbAuth=null,fbDb=null;
+
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const today=()=>iso(new Date());
+const P=s=>s.split("-").map(Number);
+const addDays=(s,n)=>{const [y,m,d]=P(s);return iso(new Date(y,m-1,d+n));};
+const diff=(a,b)=>{const x=P(a),y=P(b);return Math.round((Date.UTC(y[0],y[1]-1,y[2])-Date.UTC(x[0],x[1]-1,x[2]))/864e5);};
+const fmt=s=>{if(!s)return "—";const [y,m,d]=P(s);return pad(d)+"/"+pad(m)+"/"+y;};
+const digits=p=>(p||"").replace(/\D/g,"");
+const norm=s=>(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D");
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const stOf=k=>ST.find(s=>s[0]===k)||ST[0];
+const chOf=k=>(CH.find(c=>c[0]===k)||[,""])[1];
+const active=c=>c.stage!=="deposit"&&c.stage!=="lost";
+const nextOf=c=>active(c)?addDays(c.last,3):"";
+const days=c=>diff(c.last,today());
+const careOf=c=>{ if(!active(c))return null; const d=days(c);
+  return d>=3?["red","c-red","Overdue / Quá hạn ≥ 3 ngày"]:d===2?["yellow","c-yellow","Due Soon / Sắp đến hạn"]:["green","c-green","Safe / Đã chăm sóc"]; };
+
+function sample(){
+  const t=today(),a=n=>addDays(t,-n);
+  const L=[["Nguyễn Thị Hồng Nhung","0905112233","Khánh Hòa","Facebook Ads","VF 5 Plus","Tư vấn mua pin vs thuê pin","quote",4],
+   ["Trần Văn Đức","0912445566","Ninh Thuận","Google Ads","VF 8","Báo giá lăn bánh","nego",3],
+   ["Lê Thị Ánh Tuyết","0934778899","Bình Thuận","TikTok","VF 3","Trả góp","new",2],
+   ["Phạm Quốc Việt","0978001122","Lâm Đồng","Showroom","VF 7","Báo giá lăn bánh","drive",1],
+   ["Đặng Thị Mỹ Linh","0867556677","Khánh Hòa","Referral","VF 6","Trả góp","quote",0],
+   ["Bùi Minh Hoàng","0823990011","Ninh Thuận","Facebook Ads","Green/Service Car","Xe chạy dịch vụ, cần xe taxi điện","new",5]];
+  return {L:L.map(r=>({id:uid(),name:r[0],plain:norm(r[0]),phone:r[1],region:r[2],source:r[3],model:r[4],needs:r[5],stage:r[6],last:a(r[7]),
+      history:[{ts:Date.now()-r[7]*864e5,date:a(r[7]),stage:r[6],channel:"call",note:"Gọi tư vấn lần đầu"}]})),
+   T:[["post","VF 3","5 lý do chọn VF 3 đi phố","Facebook","published"],["post","VF 5 Plus","Pin thuê hay mua pin?","Zalo","progress"],
+      ["video","VF 6","Review nội thất VF 6","TikTok","published"],["video","VF 9","Lái thử VF 9 cùng gia đình","YouTube","planned"]]
+      .map(r=>({id:uid(),type:r[0],model:r[1],title:r[2],platform:r[3],status:r[4],link:"",date:t}))};
+}
+
+function parseCsv(txt){
+  const rows=[];let r=[],f="",q=false;txt=txt.replace(/^\uFEFF/,"");
+  for(let i=0;i<txt.length;i++){const ch=txt[i];
+    if(q){if(ch==='"'){if(txt[i+1]==='"'){f+='"';i++;}else q=false;}else f+=ch;}
+    else if(ch==='"')q=true;else if(ch===","){r.push(f);f="";}
+    else if(ch==="\n"||ch==="\r"){if(ch==="\r"&&txt[i+1]==="\n")i++;r.push(f);f="";if(r.some(x=>x.trim()))rows.push(r);r=[];}
+    else f+=ch;}
+  if(f||r.length){r.push(f);rows.push(r);} return rows;
+}
+const toDate=s=>{s=(s||"").trim();let m=s.match(/^\d{4}-\d{2}-\d{2}$/);if(m)return s;m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);return m?m[3]+"-"+pad(m[2])+"-"+pad(m[1]):today();};
+const toStage=s=>{s=(s||"").trim().toLowerCase();return (ST.find(x=>x[1].toLowerCase()===s||s.startsWith(x[1].slice(0,2)))||ST[0])[0];};
+
+function Shell({title,onClose,children,onSave,saveLabel,saveCls}){
+  return html`<div class="fixed inset-0 z-50 flex items-center justify-center p-3" style=${{background:"rgba(2,6,23,.55)"}} onClick=${onClose}>
+   <div class="card w-full max-w-lg p-5 max-h-full overflow-y-auto" onClick=${e=>e.stopPropagation()}>
+    <div class="flex items-center justify-between mb-4"><h2 class="text-lg font-bold">${title}</h2><button class="btn" onClick=${onClose}>✕</button></div>
+    ${children}
+    <div class="flex justify-end gap-2 mt-4"><button class="btn" onClick=${onClose}>Hủy</button><button class=${"btn "+(saveCls||"btn-p")} onClick=${onSave}>${saveLabel||"Lưu"}</button></div>
+   </div></div>`;
+}
+const Lbl=({t,span,children})=>html`<label class=${"text-xs muted font-semibold block "+(span?"sm:col-span-2":"")}>${t}${children}</label>`;
+function Sel({value,onChange,options,all,cls}){
+  return html`<select class=${"inp "+(cls||"")} value=${value} onChange=${e=>onChange(e.target.value)}>
+    ${all?html`<option value="">${all}</option>`:null}
+    ${options.map(o=>Array.isArray(o)?html`<option key=${o[0]} value=${o[0]}>${o[1]}</option>`:html`<option key=${o} value=${o}>${o}</option>`)}</select>`;
+}
+const Err=({e})=>e?html`<p class="text-sm mt-3" style=${{color:"#ef4444"}}>${e}</p>`:null;
+
+function InfoModal({item,onClose,onSave}){
+  const [f,setF]=useState(item||{name:"",phone:"",region:REGIONS[0],source:SOURCES[0],model:MODELS[0],needs:""});
+  const [err,setErr]=useState(""); const set=(k,v)=>setF(o=>({...o,[k]:v}));
+  const go=()=>{ if(!f.name.trim())return setErr("Vui lòng nhập họ và tên."); if(digits(f.phone).length<9)return setErr("Số điện thoại chưa hợp lệ.");
+    onSave({name:f.name.trim(),phone:f.phone.trim(),region:f.region,source:f.source,model:f.model,needs:f.needs.trim()}); };
+  return html`<${Shell} title=${item?"Edit Customer Profile · Sửa thông tin":"Thêm khách hàng mới"} onClose=${onClose} onSave=${go}>
+   ${item?html`<p class="text-xs muted mb-3">Chỉ sửa thông tin hồ sơ. Ngày chăm sóc gần nhất và bộ đếm 3 ngày sẽ <b>không</b> thay đổi.</p>`:null}
+   <div class="grid sm:grid-cols-2 gap-3">
+    <${Lbl} t="Họ và tên *"><input class="inp mt-1" value=${f.name} onInput=${e=>set("name",e.target.value)} /><//>
+    <${Lbl} t="Tên không dấu (tự động)"><input class="inp mt-1 soft" readOnly value=${norm(f.name)} /><//>
+    <${Lbl} t="Số điện thoại *"><input class="inp mt-1" inputMode="tel" value=${f.phone} onInput=${e=>set("phone",e.target.value)} /><//>
+    <${Lbl} t="Khu vực"><${Sel} cls="mt-1" value=${f.region} onChange=${v=>set("region",v)} options=${REGIONS} /><//>
+    <${Lbl} t="Nguồn"><${Sel} cls="mt-1" value=${f.source} onChange=${v=>set("source",v)} options=${SOURCES} /><//>
+    <${Lbl} t="Dòng xe quan tâm"><${Sel} cls="mt-1" value=${f.model} onChange=${v=>set("model",v)} options=${MODELS} /><//>
+    <${Lbl} t="Nhu cầu chung" span=${1}><textarea class="inp mt-1" rows="2" placeholder="VD: Tư vấn mua pin vs thuê pin, Báo giá lăn bánh, Trả góp" value=${f.needs} onInput=${e=>set("needs",e.target.value)}></textarea><//>
+   </div><${Err} e=${err} /><//>`;
+}
+
+function CareModal({c,onClose,onSave}){
+  const [f,setF]=useState({stage:c.stage,channel:"call",note:""});
+  const [err,setErr]=useState(""); const set=(k,v)=>setF(o=>({...o,[k]:v}));
+  const go=()=>f.note.trim()?onSave(f):setErr("Vui lòng nhập ghi chú / kết quả cuộc gọi.");
+  const hist=[...(c.history||[])].sort((a,b)=>b.ts-a.ts);
+  return html`<${Shell} title="Update Customer Care Progress · Cập nhật CSKH" onClose=${onClose} onSave=${go} saveLabel="Lưu & đặt lại 3 ngày" saveCls="btn-g">
+   <div class="mb-3"><div class="font-bold">${c.name}</div><div class="text-xs muted">${c.phone} · ${c.model} · Lần CS gần nhất: ${fmt(c.last)}</div></div>
+   <div class="grid sm:grid-cols-2 gap-3">
+    <${Lbl} t="Tiến độ chăm sóc mới"><${Sel} cls="mt-1" value=${f.stage} onChange=${v=>set("stage",v)} options=${ST.map(s=>[s[0],s[1]])} /><//>
+    <${Lbl} t="Kênh liên hệ"><${Sel} cls="mt-1" value=${f.channel} onChange=${v=>set("channel",v)} options=${CH} /><//>
+    <${Lbl} t="Ghi chú chăm sóc / Kết quả cuộc gọi *" span=${1}><textarea class="inp mt-1" rows="3" value=${f.note} onInput=${e=>set("note",e.target.value)}></textarea><//>
+   </div><p class="text-xs muted mt-2">Lưu sẽ đặt Ngày CS gần nhất = hôm nay và Ngày CS lại = ${fmt(addDays(today(),3))}.</p><${Err} e=${err} />
+   <div class="mt-4 font-bold text-sm">Lịch sử chăm sóc (${hist.length})</div>
+   <div class="tl mt-2 space-y-3">${hist.map((h,i)=>html`<div key=${i}><div class="text-xs muted">${fmt(h.date)} ${h.channel?"· "+chOf(h.channel):""}</div>
+     <span class=${"badge "+stOf(h.stage)[3]}>${stOf(h.stage)[1]}</span><div class="text-sm mt-1">${h.note}</div></div>`)}</div><//>`;
+}
+
+function TaskModal({item,onClose,onSave,date}){
+  const [f,setF]=useState(item||{type:"post",model:MODELS[0],title:"",platform:"Facebook",status:"planned",link:"",date});
+  const [err,setErr]=useState(""); const set=(k,v)=>setF(o=>({...o,[k]:v}));
+  const go=()=>f.title.trim()?onSave({...f,title:f.title.trim()}):setErr("Vui lòng nhập tiêu đề / chủ đề.");
+  return html`<${Shell} title=${item?"Sửa công việc":"Thêm công việc"} onClose=${onClose} onSave=${go}>
+   <div class="grid sm:grid-cols-2 gap-3">
+    <${Lbl} t="Loại"><${Sel} cls="mt-1" value=${f.type} onChange=${v=>set("type",v)} options=${[["post","Post (Đăng bài viết)"],["video","Video (Reels/TikTok)"]]} /><//>
+    <${Lbl} t="Dòng xe nổi bật"><${Sel} cls="mt-1" value=${f.model} onChange=${v=>set("model",v)} options=${MODELS} /><//>
+    <${Lbl} t="Chủ đề / Tiêu đề" span=${1}><input class="inp mt-1" value=${f.title} onInput=${e=>set("title",e.target.value)} /><//>
+    <${Lbl} t="Nền tảng"><${Sel} cls="mt-1" value=${f.platform} onChange=${v=>set("platform",v)} options=${PLAT} /><//>
+    <${Lbl} t="Trạng thái"><${Sel} cls="mt-1" value=${f.status} onChange=${v=>set("status",v)} options=${TST} /><//>
+    <${Lbl} t="Link bài đăng" span=${1}><input class="inp mt-1" placeholder="https://…" value=${f.link} onInput=${e=>set("link",e.target.value)} /><//>
+   </div><${Err} e=${err} /><//>`;
+}
+
+function Goal({label,done,target}){
+  const pct=target?Math.min(100,done/target*100):0;
+  return html`<div><div class="flex justify-between text-sm font-semibold"><span>${label}</span><span>${done}/${target}</span></div>
+    <div class="bar mt-1"><div style=${{width:pct+"%",background:done>=target?"#16a34a":"var(--accent)"}}></div></div></div>`;
+}
+
+function CustTable({rows,onCare,onEdit,onDel,conf}){
+  const H=["STT","Họ và tên / Tên không dấu","Số điện thoại","Khu vực","Nguồn","Dòng xe","Nhu cầu chung","Tiến độ chăm sóc","Bộ đếm 3 ngày","Thao tác"];
+  return html`<div class="card overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm" style=${{minWidth:"1300px"}}>
+   <thead><tr class="soft text-left text-xs uppercase tracking-wide muted">${H.map(h=>html`<th key=${h} class="px-3 py-3 font-semibold">${h}</th>`)}</tr></thead>
+   <tbody>${rows.length===0?html`<tr><td colSpan="10" class="px-4 py-12 text-center muted">Không có khách hàng phù hợp.</td></tr>`:rows.map((c,i)=>{
+    const s=stOf(c.stage),cr=careOf(c);
+    return html`<tr key=${c.id} class=${"border-t line align-top "+(cr&&cr[0]==="red"?"overdue":"")}>
+     <td class="px-3 py-3 muted">${i+1}</td>
+     <td class="px-3 py-3"><div class="font-semibold">${c.name}</div><div class="text-xs muted">${c.plain}</div></td>
+     <td class="px-3 py-3 whitespace-nowrap"><a class="lnk" href=${"tel:"+digits(c.phone)}>📞 ${c.phone}</a><a class="lnk text-xs ml-2" href=${"https://zalo.me/"+digits(c.phone)} target="_blank" rel="noopener noreferrer">Zalo</a></td>
+     <td class="px-3 py-3">${c.region}</td><td class="px-3 py-3">${c.source}</td><td class="px-3 py-3 font-medium">${c.model}</td>
+     <td class="px-3 py-3" style=${{maxWidth:"200px"}}>${c.needs}</td>
+     <td class="px-3 py-3" style=${{minWidth:"170px"}}><button class=${"badge "+s[3]} title="Cập nhật CSKH" onClick=${()=>onCare(c)}>${s[1]}</button>
+       <div class="bar mt-2"><div style=${{width:s[2]+"%",background:c.stage==="lost"?"#94a3b8":c.stage==="deposit"?"#16a34a":"var(--accent)"}}></div></div><div class="text-xs font-bold mt-1">${s[2]}%</div></td>
+     <td class="px-3 py-3 whitespace-nowrap text-xs"><div>Gần nhất: <b>${fmt(c.last)}</b> (${days(c)} ngày trước)</div><div>CS lại: <b>${fmt(nextOf(c))}</b></div>
+       <div class="mt-1">${cr?html`<span class=${"badge "+cr[1]}>${cr[2]}</span>`:html`<span class="muted">Không cần theo dõi</span>`}</div></td>
+     <td class="px-3 py-3"><div class="flex flex-col gap-1" style=${{minWidth:"150px"}}>
+       <button class="btn btn-g" onClick=${()=>onCare(c)}>✓ Cập nhật CSKH</button>
+       <button class="btn btn-n" onClick=${()=>onEdit(c)}>✎ Sửa thông tin</button>
+       <button class="text-xs muted text-left" onClick=${()=>onDel(c)}>${conf===c.id?"Bấm lần nữa để xóa":"Xóa khách hàng"}</button></div></td></tr>`;})}</tbody></table></div></div>`;
+}
+
+function App(){
+  const [mode,setMode]=useState("boot"),[sync,setSync]=useState("synced"),[me,setMe]=useState(null);
+  const [leads,setLeads]=useState([]),[tasks,setTasks]=useState([]),[goals,setGoals]=useState({post:3,video:2});
+  const [tab,setTab]=useState("cust");
+  const [q,setQ]=useState(""),[fm,setFm]=useState(""),[fr,setFr]=useState(""),[fs,setFs]=useState(""),[ff,setFf]=useState("");
+  const [info,setInfo]=useState(null),[care,setCare]=useState(null),[tmodal,setTmodal]=useState(null),[conf,setConf]=useState(null);
+  const [date,setDate]=useState(today()),[msg,setMsg]=useState("");
+  const col=useRef(null),fileRef=useRef(null);
+  const [authId,setAuthId]=useState(""),[authPw,setAuthPw]=useState(""),[isUp,setIsUp]=useState(false),[authErr,setAuthErr]=useState(""),[busy,setBusy]=useState(false);
+  const submitAuth=async()=>{
+    setAuthErr("");const id=authId.trim();if(!id||!authPw)return setAuthErr("Vui lòng nhập tài khoản và mật khẩu.");
+    const email=id.includes("@")?id:id+"@vinfast-crm.app";setBusy(true);
+    try{ if(isUp)await fbAuth.createUserWithEmailAndPassword(email,authPw);else await fbAuth.signInWithEmailAndPassword(email,authPw); }
+    catch(e){const c=e.code||"";setAuthErr(/invalid-credential|user-not-found|wrong-password/.test(c)?"Sai tài khoản hoặc mật khẩu.":c==="auth/email-already-in-use"?"Tài khoản này đã tồn tại.":c==="auth/weak-password"?"Mật khẩu tối thiểu 6 ký tự.":c==="auth/invalid-email"?"Tài khoản không hợp lệ.":(e.message||"Đăng nhập không thành công."));}
+    setBusy(false);
+  };
+  const logout=()=>{ if(mode==="cloud"&&fbAuth)fbAuth.signOut(); else setMode("auth"); };
+
+  useEffect(()=>{
+    let off=()=>{},unAuth=()=>{};
+    if(!FB_READY){setMode("auth");return;}
+    if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+    fbAuth=firebase.auth();fbDb=firebase.firestore();
+    try{fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});}catch(e){}
+    unAuth=fbAuth.onAuthStateChanged(u=>{
+      off();off=()=>{};
+      if(!u){col.current=null;setMe(null);setLeads([]);setTasks([]);setMode(m=>m==="local"?m:"auth");return;}
+      setMe({name:u.email.replace("@vinfast-crm.app","")});
+      col.current=fbDb.collection("users").doc(u.uid).collection("crm");setMode("cloud");
+      off=col.current.onSnapshot(snap=>{
+        const L=[],T=[];let g=null;
+        snap.docs.forEach(d=>{const x=d.data();if(!x)return;if(x.kind==="lead")L.push(x);else if(x.kind==="task")T.push(x);else if(x.kind==="settings"&&x.goals)g=x.goals;});
+        setLeads(L);setTasks(T);if(g)setGoals(g);setSync(snap.metadata.hasPendingWrites?"pending":"synced");
+      },()=>setSync("error"));
+    });
+    return()=>{off();unAuth();};
+  },[]);
+  useEffect(()=>{ if(mode==="local"){try{localStorage.setItem(LS,JSON.stringify({leads,tasks,goals}));}catch(e){}} },[mode,leads,tasks,goals]);
+  useEffect(()=>{if(msg){const t=setTimeout(()=>setMsg(""),3500);return()=>clearTimeout(t);}},[msg]);
+
+  const goLocal=()=>{try{const s=JSON.parse(localStorage.getItem(LS)||"null");if(s){setLeads(s.leads||[]);setTasks(s.tasks||[]);if(s.goals)setGoals(s.goals);}}catch(e){} setMode("local");};
+  const cloudSet=(path,data)=>{ if(col.current){setSync("pending");col.current.doc(path).set(data).catch(()=>setSync("error"));} };
+  const cloudDel=path=>{ if(col.current){setSync("pending");col.current.doc(path).delete().catch(()=>setSync("error"));} };
+  const put=(kind,o)=>{ (kind==="lead"?setLeads:setTasks)(l=>l.some(x=>x.id===o.id)?l.map(x=>x.id===o.id?o:x):[o,...l]); cloudSet(kind+"-"+o.id,{...o,kind}); };
+  const del=(kind,id)=>{ (kind==="lead"?setLeads:setTasks)(l=>l.filter(x=>x.id!==id)); cloudDel(kind+"-"+id); };
+  const saveGoals=g=>{setGoals(g);cloudSet("settings",{kind:"settings",goals:g});};
+  const loadSample=()=>{const s=sample();s.L.forEach(x=>put("lead",x));s.T.forEach(x=>put("task",x));setMsg("Đã nạp dữ liệu mẫu.");};
+
+  const saveInfo=f=>{
+    if(info&&info.item){ put("lead",{...info.item,...f,plain:norm(f.name)}); setMsg("Đã cập nhật hồ sơ (bộ đếm 3 ngày không đổi)."); }
+    else put("lead",{id:uid(),...f,plain:norm(f.name),stage:"new",last:today(),history:[{ts:Date.now(),date:today(),stage:"new",channel:"",note:"Tiếp nhận khách hàng mới"}]});
+    setInfo(null);
+  };
+  const saveCare=f=>{ const c=care; put("lead",{...c,stage:f.stage,last:today(),history:[{ts:Date.now(),date:today(),stage:f.stage,channel:f.channel,note:f.note.trim()},...(c.history||[])]});
+    setMsg("Đã ghi nhật ký CSKH — hẹn chăm sóc lại "+fmt(addDays(today(),3))+"."); setCare(null); };
+  const delC=c=>{ if(conf===c.id){del("lead",c.id);setConf(null);} else setConf(c.id); };
+
+  const list=useMemo(()=>{
+    const nq=norm(q.trim()).toLowerCase(),dq=digits(q);
+    return leads.filter(c=>(!fm||c.model===fm)&&(!fr||c.region===fr)&&(!fs||c.stage===fs)&&(!ff||(careOf(c)||[])[0]===ff)&&
+      (!q.trim()||norm(c.name).toLowerCase().includes(nq)||(dq&&digits(c.phone).includes(dq))))
+      .sort((a,b)=>(a.last<b.last?-1:a.last>b.last?1:0));
+  },[leads,q,fm,fr,fs,ff]);
+  const nRed=leads.filter(c=>(careOf(c)||[])[0]==="red").length,nYel=leads.filter(c=>(careOf(c)||[])[0]==="yellow").length;
+  const queue=useMemo(()=>leads.filter(c=>active(c)&&days(c)>=2).sort((a,b)=>days(b)-days(a)),[leads]);
+
+  const dayTasks=tasks.filter(t=>t.date===date);
+  const done=ty=>dayTasks.filter(t=>t.type===ty&&t.status==="published").length;
+  const saveT=t=>{put("task",t.id?t:{...t,id:uid()});setTmodal(null);};
+
+  const save=async(name,rows)=>{
+    const esc=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+    const csv="\uFEFF"+rows.map(r=>r.map(esc).join(",")).join("\r\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=name;
+    document.body.appendChild(a);a.click();a.remove();setMsg("Đã xuất "+(rows.length-1)+" dòng.");
+  };
+  const exportC=()=>save("khach-hang-vinfast.csv",[["Họ và tên","Tên không dấu","Số điện thoại","Khu vực","Nguồn","Dòng xe quan tâm","Nhu cầu chung","Tiến độ chăm sóc","Ngày chăm sóc gần nhất","Ngày chăm sóc lại"],
+    ...list.map(c=>[c.name,c.plain,c.phone,c.region,c.source,c.model,c.needs,stOf(c.stage)[1],c.last,nextOf(c)])]);
+  const exportT=()=>save("cong-viec-marketing.csv",[["Ngày","Loại","Dòng xe","Tiêu đề","Nền tảng","Trạng thái","Link"],
+    ...tasks.map(t=>[t.date,t.type,t.model,t.title,t.platform,(TST.find(s=>s[0]===t.status)||[])[1],t.link])]);
+  const importC=e=>{
+    const file=e.target.files&&e.target.files[0]; if(!file)return;
+    const rd=new FileReader();
+    rd.onload=()=>{ try{
+      const rows=parseCsv(String(rd.result)).slice(1).filter(r=>r[0]&&r[0].trim());
+      rows.forEach(r=>{ const stage=toStage(r[7]),last=toDate(r[8]);
+        put("lead",{id:uid(),name:r[0].trim(),plain:norm(r[0]),phone:(r[2]||"").trim(),region:(r[3]||"").trim()||REGIONS[0],source:(r[4]||"").trim()||SOURCES[0],
+          model:MODELS.includes(r[5])?r[5]:MODELS[0],needs:(r[6]||"").trim(),stage,last,history:[{ts:Date.now(),date:last,stage,channel:"",note:"Nhập từ CSV"}]}); });
+      setMsg("Đã nhập "+rows.length+" khách hàng.");
+    }catch(x){setMsg("File CSV không hợp lệ.");} };
+    rd.readAsText(file); e.target.value="";
+  };
+
+  if(mode==="boot")return html`<div class="p-10 text-center muted">Đang kết nối tài khoản…</div>`;
+  if(mode==="auth")return html`<div class="min-h-screen flex items-center justify-center p-4"><div class="card p-6 max-w-sm w-full">
+    <div class="text-center"><div class="text-4xl mb-1">⚡</div><h1 class="text-xl font-extrabold">VinFast CRM</h1>
+    <p class="text-sm muted mt-1">${isUp?"Tạo tài khoản mới":"Đăng nhập để đồng bộ dữ liệu đa thiết bị"}</p></div>
+    ${FB_READY?html`<div class="space-y-3 mt-5">
+      <${Lbl} t="Email hoặc tên đăng nhập"><input class="inp mt-1" autoComplete="username" value=${authId} onInput=${e=>setAuthId(e.target.value)} /><//>
+      <${Lbl} t="Mật khẩu"><input class="inp mt-1" type="password" autoComplete=${isUp?"new-password":"current-password"} value=${authPw} onInput=${e=>setAuthPw(e.target.value)} onKeyDown=${e=>e.key==="Enter"&&submitAuth()} /><//>
+      <${Err} e=${authErr} />
+      <button class="btn btn-p w-full" disabled=${busy} onClick=${submitAuth}>${busy?"Đang xử lý…":isUp?"Đăng ký":"Đăng nhập"}</button>
+      <button class="text-xs muted underline w-full" onClick=${()=>{setIsUp(!isUp);setAuthErr("");}}>${isUp?"Đã có tài khoản? Đăng nhập":"Chưa có tài khoản? Đăng ký"}</button></div>`
+    :html`<p class="text-sm mt-4" style=${{color:"#ca8a04"}}>Chưa cấu hình Firebase. Mở file, dán cấu hình vào FIREBASE_CONFIG ở đầu phần script.</p>`}
+    <button class="btn w-full mt-4" onClick=${goLocal}>Dùng chế độ cục bộ (chỉ trên thiết bị này)</button></div></div>`;
+
+  const SY={synced:["c-green","☁ Cloud Synced"],pending:["c-yellow","⟳ Đang đồng bộ…"],error:["c-red","⚠ Mất kết nối"]};
+  const sy=mode==="local"?["b-drop","💾 Chỉ lưu trên thiết bị"]:SY[sync];
+  const Tab=(k,l)=>html`<button class=${"tab "+(tab===k?"on":"")} onClick=${()=>setTab(k)}>${l}</button>`;
+  const T=props=>html`<${CustTable} ...${props} conf=${conf} onCare=${setCare} onEdit=${c=>setInfo({item:c})} onDel=${delC} />`;
+
+  return html`<div class="max-w-[1400px] mx-auto p-4 sm:p-6">
+   <header class="flex flex-wrap items-center justify-between gap-3 mb-4">
+    <div><h1 class="text-2xl font-extrabold tracking-tight">⚡ VinFast CRM</h1><p class="text-sm muted">CSKH, quy tắc 3 ngày & marketing hàng ngày · Hôm nay ${fmt(today())}</p></div>
+    <div class="flex items-center gap-2"><span class=${"badge "+sy[0]}>${sy[1]}</span>
+      ${me&&mode==="cloud"?html`<span class="text-xs muted">👤 ${me.name}</span>`:null}
+      <button class="btn" onClick=${logout}>${mode==="cloud"?"Đăng xuất":"Đăng nhập"}</button></div>
+   </header>
+   <nav class="flex gap-1 card p-1 mb-4 overflow-x-auto">${Tab("cust","Khách hàng ("+leads.length+")")}${Tab("queue","Hàng đợi 3 ngày ("+queue.length+")")}${Tab("tasks","Công việc hàng ngày")}</nav>
+   ${msg?html`<div class="card px-4 py-2 mb-3 text-sm font-semibold" style=${{color:"var(--accent)"}}>${msg}</div>`:null}
+
+   ${tab!=="tasks"?html`<div class="rounded-2xl p-4 mb-4 flex flex-wrap items-center justify-between gap-3" style=${{background:nRed?"rgba(239,68,68,.12)":"rgba(34,197,94,.12)",border:"1px solid "+(nRed?"rgba(239,68,68,.4)":"rgba(34,197,94,.4)")}}>
+     <div><div class="font-extrabold" style=${{color:nRed?"#ef4444":"#16a34a"}}>${nRed?"🔔 "+nRed+" khách hàng quá hạn ≥ 3 ngày — cần gọi ngay":"✅ Không có khách hàng quá hạn"}</div>
+      <div class="text-sm muted">${nYel} khách hàng sắp đến hạn (2 ngày)</div></div>
+     ${tab==="cust"?html`<button class="btn btn-p" onClick=${()=>setTab("queue")}>Mở hàng đợi 3 ngày</button>`:null}</div>`:null}
+
+   ${tab==="cust"?html`<div>
+    <div class="card p-4 mb-4"><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 items-end">
+      <input class="inp lg:col-span-2" placeholder="Tìm tên (có/không dấu) hoặc SĐT…" value=${q} onInput=${e=>setQ(e.target.value)} />
+      <${Sel} value=${fm} onChange=${setFm} options=${MODELS} all="Tất cả dòng xe" />
+      <${Sel} value=${fr} onChange=${setFr} options=${REGIONS} all="Tất cả khu vực" />
+      <${Sel} value=${fs} onChange=${setFs} options=${ST.map(s=>[s[0],s[1]])} all="Tất cả tiến độ" />
+      <${Sel} value=${ff} onChange=${setFf} options=${[["red","Quá hạn ≥ 3 ngày"],["yellow","Sắp đến hạn"],["green","Đã chăm sóc"]]} all="Lịch 3 ngày" /></div>
+     <div class="flex flex-wrap items-center justify-between gap-2 mt-3">
+      <span class="text-xs muted">Hiển thị <b>${list.length}</b> / ${leads.length} · <button class="underline" onClick=${()=>{setQ("");setFm("");setFr("");setFs("");setFf("");}}>Xóa bộ lọc</button></span>
+      <div class="flex flex-wrap gap-2"><input ref=${fileRef} type="file" accept=".csv,text/csv" class="hidden" onChange=${importC} />
+       ${leads.length===0?html`<button class="btn" onClick=${loadSample}>Nạp dữ liệu mẫu</button>`:null}
+       <button class="btn" onClick=${()=>fileRef.current&&fileRef.current.click()}>⬆ Nhập CSV</button>
+       <button class="btn" onClick=${exportC}>⬇ Xuất CSV</button>
+       <button class="btn btn-p" onClick=${()=>setInfo({})}>＋ Thêm khách hàng</button></div></div></div>
+    <${T} rows=${list} />
+    <p class="text-xs muted mt-3">Nhập CSV theo đúng cột của file xuất. Bảng cuộn ngang trên điện thoại.</p>
+   </div>`:null}
+
+   ${tab==="queue"?html`<div><p class="text-sm muted mb-3">Khách hàng đang chăm sóc đã 2 ngày trở lên chưa liên hệ, xếp theo mức trễ giảm dần.</p><${T} rows=${queue} /></div>`:null}
+
+   ${tab==="tasks"?html`<div>
+    <div class="card p-4 mb-4"><div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <div class="font-extrabold text-lg">Mục tiêu: ${done("post")}/${goals.post} bài viết, ${done("video")}/${goals.video} video</div>
+      <div class="flex flex-wrap items-center gap-2 text-xs muted">Ngày <input type="date" class="inp !w-auto" value=${date} onInput=${e=>setDate(e.target.value||today())} />
+       Bài <input type="number" min="0" class="inp !w-16" value=${goals.post} onInput=${e=>saveGoals({...goals,post:Math.max(0,+e.target.value||0)})} />
+       Video <input type="number" min="0" class="inp !w-16" value=${goals.video} onInput=${e=>saveGoals({...goals,video:Math.max(0,+e.target.value||0)})} /></div></div>
+     <div class="grid sm:grid-cols-2 gap-4"><${Goal} label="Daily Posts · Đăng bài viết" done=${done("post")} target=${goals.post} /><${Goal} label="Daily Videos · Đăng video / Reels / TikTok" done=${done("video")} target=${goals.video} /></div></div>
+    <div class="flex flex-wrap justify-end gap-2 mb-3"><button class="btn" onClick=${exportT}>⬇ Xuất CSV</button><button class="btn btn-p" onClick=${()=>setTmodal({})}>＋ Thêm công việc</button></div>
+    <div class="card">${dayTasks.length===0?html`<div class="p-10 text-center muted">Chưa có công việc cho ngày này.</div>`:dayTasks.map(t=>html`
+      <div key=${t.id} class="flex flex-wrap items-center gap-3 p-3 border-t line first:border-t-0">
+       <input type="checkbox" class="w-5 h-5" checked=${t.status==="published"} onChange=${()=>put("task",{...t,status:t.status==="published"?"planned":"published"})} />
+       <div class="flex-1" style=${{minWidth:"200px"}}><div class=${"font-semibold "+(t.status==="published"?"line-through muted":"")}>${t.title}</div>
+        <div class="text-xs muted mt-1">${t.type==="post"?"📝 Bài viết":"🎬 Video"} · ${t.model} · ${t.platform} ${t.link?html`· <a class="lnk" href=${t.link} target="_blank" rel="noopener noreferrer">Xem bài</a>`:null}</div></div>
+       <div style=${{width:"170px"}}><${Sel} cls="!py-1 !text-xs" value=${t.status} onChange=${v=>put("task",{...t,status:v})} options=${TST} /></div>
+       <button class="btn" onClick=${()=>setTmodal({item:t})}>Sửa</button>
+       <button class="btn" onClick=${()=>del("task",t.id)}>Xóa</button></div>`)}</div>
+   </div>`:null}
+
+   ${info?html`<${InfoModal} item=${info.item} onClose=${()=>setInfo(null)} onSave=${saveInfo} />`:null}
+   ${care?html`<${CareModal} c=${care} onClose=${()=>setCare(null)} onSave=${saveCare} />`:null}
+   ${tmodal?html`<${TaskModal} item=${tmodal.item} date=${date} onClose=${()=>setTmodal(null)} onSave=${saveT} />`:null}
+  </div>`;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(html`<${App} />`);
+</script>
+</body>
+</html>
